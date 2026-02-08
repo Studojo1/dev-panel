@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useSearchParams, useNavigate, Link } from "react-router";
+import { useSearchParams, useNavigate } from "react-router";
 import { authClient } from "~/lib/auth-client";
 import type { Route } from "./+types/auth";
 
@@ -53,6 +53,7 @@ export default function Auth({ loaderData }: Route.ComponentProps) {
         const result = await authClient.signUp.email({
           email,
           password,
+          name: email.split("@")[0] || "User",
         });
 
         if (result.error) {
