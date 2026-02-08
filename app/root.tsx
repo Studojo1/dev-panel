@@ -5,6 +5,7 @@ import {
   Scripts,
   ScrollRestoration,
   useLocation,
+  isRouteErrorResponse,
 } from "react-router";
 import { Toaster } from "sonner";
 import { useEffect } from "react";
@@ -65,4 +66,45 @@ export default function Root({ loaderData }: Route.ComponentProps) {
   }, [session, isPending, location.pathname]);
 
   return <Outlet />;
+}
+
+export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
+  let message = "Oops!";
+  let details = "An unexpected error occurred.";
+  let statusCode: number | undefined;
+
+  if (isRouteErrorResponse(error)) {
+    statusCode = error.status;
+    message = error.status === 404 ? "Page Not Found" : error.status === 500 ? "Server Error" : "Error";
+    details =
+      error.status === 404
+        ? "The page you're looking for doesn't exist or has been moved."
+        : error.status === 500
+        ? "Something went wrong on our end. We're working to fix it!"
+        : error.statusText || details;
+  } else if (error && error instanceof Error) {
+    details = error.message;
+    message = "Application Error";
+  }
+
+  return (
+    <div className="min-h-screen bg-[var(--color-studojo-surface)] flex items-center justify-center px-4">
+      <div className="w-full max-w-md">
+        <div className="bg-white border-2 border-[var(--color-studojo-ink)] rounded-lg shadow-[var(--shadow-brutal)] p-8 text-center">
+          <h1 className="text-3xl font-bold font-['Clash_Display'] text-[var(--color-studojo-ink)] mb-2">
+            {message}
+          </h1>
+          <p className="text-[var(--color-studojo-muted)] font-['Satoshi'] mb-6">
+            {details}
+          </p>
+          <a
+            href="/"
+            className="inline-block px-4 py-2 bg-[var(--color-studojo-purple)] text-white rounded-lg font-['Satoshi'] font-medium hover:bg-[var(--color-studojo-violet-500)] transition-colors"
+          >
+            Go Home
+          </a>
+        </div>
+      </div>
+    </div>
+  );
 }
