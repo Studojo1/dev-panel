@@ -1,5 +1,6 @@
 import { Link } from "react-router";
 import type { Route } from "./+types/index";
+import { Header } from "~/components/header";
 import { getServices } from "~/lib/api";
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -16,68 +17,73 @@ export default function Index({ loaderData }: Route.ComponentProps) {
   const { services } = loaderData;
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between h-16">
-            <div className="flex">
-              <div className="flex-shrink-0 flex items-center">
-                <h1 className="text-xl font-bold">Dev Panel</h1>
-              </div>
-              <div className="hidden sm:ml-6 sm:flex sm:space-x-8">
-                <Link to="/" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  Dashboard
-                </Link>
-                <Link to="/services" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  Services
-                </Link>
-                <Link to="/logs" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  Logs
-                </Link>
-                <Link to="/metrics" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  Metrics
-                </Link>
-                <Link to="/ci-cd" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  CI/CD
-                </Link>
-                <Link to="/docs" className="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">
-                  Docs
-                </Link>
-              </div>
-            </div>
-          </div>
+    <div className="min-h-screen bg-[var(--color-studojo-surface)]">
+      <Header />
+      <main className="max-w-[var(--section-max-width)] mx-auto px-[var(--section-padding-x)] py-[var(--section-padding-y)]">
+        <div className="mb-8">
+          <h1 className="text-4xl font-bold font-['Clash_Display'] text-[var(--color-studojo-ink)] mb-2">
+            Dev Panel Dashboard
+          </h1>
+          <p className="text-lg font-['Satoshi'] text-[var(--color-studojo-muted)]">
+            Monitor and manage all Studojo services
+          </p>
         </div>
-      </nav>
 
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="px-4 py-6 sm:px-0">
-          <h2 className="text-2xl font-bold mb-4">Service Status</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {services.map((service) => (
-              <div key={service.name} className="bg-white overflow-hidden shadow rounded-lg">
-                <div className="p-5">
-                  <div className="flex items-center">
-                    <div className="flex-shrink-0">
-                      <div className={`h-3 w-3 rounded-full ${service.status === "healthy" ? "bg-green-400" : "bg-red-400"}`}></div>
-                    </div>
-                    <div className="ml-5 w-0 flex-1">
-                      <dl>
-                        <dt className="text-sm font-medium text-gray-500 truncate">{service.name}</dt>
-                        <dd className="flex items-baseline">
-                          <div className="text-2xl font-semibold text-gray-900">{service.status}</div>
-                        </dd>
-                        <dd className="text-sm text-gray-500">Version: {service.version}</dd>
-                        <dd className="text-sm text-gray-500">Replicas: {service.ready_replicas}/{service.replicas}</dd>
-                      </dl>
-                    </div>
-                  </div>
-                </div>
+        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          {services.map((service: any) => (
+            <Link
+              key={service.name}
+              to={`/services/${service.name}`}
+              className="bg-white border-2 border-[var(--color-studojo-ink)] rounded-lg shadow-[var(--shadow-brutal)] p-6 hover:shadow-[var(--shadow-brutal-lg)] transition-all"
+            >
+              <div className="flex items-start justify-between mb-4">
+                <h3 className="text-xl font-bold font-['Clash_Display'] text-[var(--color-studojo-ink)]">
+                  {service.name}
+                </h3>
+                <div
+                  className={`h-3 w-3 rounded-full ${
+                    service.status === "healthy" || service.status === "ready"
+                      ? "bg-[var(--color-studojo-green)]"
+                      : "bg-red-500"
+                  }`}
+                />
               </div>
-            ))}
-          </div>
+              <div className="space-y-2 font-['Satoshi'] text-sm">
+                <div className="flex justify-between">
+                  <span className="text-[var(--color-studojo-muted)]">Status:</span>
+                  <span className="font-medium text-[var(--color-studojo-ink)] capitalize">
+                    {service.status}
+                  </span>
+                </div>
+                {service.version && (
+                  <div className="flex justify-between">
+                    <span className="text-[var(--color-studojo-muted)]">Version:</span>
+                    <span className="font-medium text-[var(--color-studojo-ink)]">
+                      {service.version}
+                    </span>
+                  </div>
+                )}
+                {service.ready_replicas !== undefined && (
+                  <div className="flex justify-between">
+                    <span className="text-[var(--color-studojo-muted)]">Replicas:</span>
+                    <span className="font-medium text-[var(--color-studojo-ink)]">
+                      {service.ready_replicas}/{service.replicas}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </Link>
+          ))}
         </div>
+
+        {services.length === 0 && (
+          <div className="bg-white border-2 border-[var(--color-studojo-ink)] rounded-lg shadow-[var(--shadow-brutal)] p-8 text-center">
+            <p className="font-['Satoshi'] text-[var(--color-studojo-muted)]">
+              No services found. Check your connection to the control plane.
+            </p>
+          </div>
+        )}
       </main>
     </div>
   );
 }
-

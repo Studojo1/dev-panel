@@ -1,16 +1,19 @@
 import { marked } from "marked";
 import { useEffect, useState } from "react";
+import { Link } from "react-router";
 import type { Route } from "./+types/docs.$slug";
+import { Header } from "~/components/header";
 
 export async function loader({ params }: Route.LoaderArgs) {
   const { slug } = params;
   try {
-    const response = await fetch(`/doc/${slug}.md`);
+    const controlPlaneUrl = process.env.VITE_CONTROL_PLANE_URL || "https://api.studojo.com";
+    const response = await fetch(`${controlPlaneUrl}/v1/dev/docs/${slug}`);
     if (!response.ok) {
       return { content: null, slug };
     }
-    const content = await response.text();
-    return { content, slug };
+    const data = await response.json();
+    return { content: data.content, slug };
   } catch (error) {
     console.error("Failed to load doc:", error);
     return { content: null, slug };
@@ -35,23 +38,36 @@ export default function DocSlug({ loaderData }: Route.ComponentProps) {
 
   if (!content) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold mb-6">Documentation Not Found</h1>
-          <p className="text-gray-600">The document "{slug}" could not be found.</p>
-        </div>
+      <div className="min-h-screen bg-[var(--color-studojo-surface)]">
+        <Header />
+        <main className="max-w-[var(--section-max-width)] mx-auto px-[var(--section-padding-x)] py-[var(--section-padding-y)]">
+          <div className="bg-white border-2 border-[var(--color-studojo-ink)] rounded-lg shadow-[var(--shadow-brutal)] p-8">
+            <h1 className="text-3xl font-bold font-['Clash_Display'] text-[var(--color-studojo-ink)] mb-4">
+              Documentation Not Found
+            </h1>
+            <p className="font-['Satoshi'] text-[var(--color-studojo-muted)] mb-4">
+              The document "{slug}" could not be found.
+            </p>
+            <Link
+              to="/docs"
+              className="inline-block px-4 py-2 bg-[var(--color-studojo-purple)] text-white rounded-lg font-['Satoshi'] font-medium hover:bg-[var(--color-studojo-violet-500)] transition-colors"
+            >
+              Back to Docs
+            </Link>
+          </div>
+        </main>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-4xl mx-auto py-6 sm:px-6 lg:px-8">
-        <div className="bg-white shadow rounded-lg p-8 prose max-w-none">
-          <div dangerouslySetInnerHTML={{ __html: html }} />
+    <div className="min-h-screen bg-[var(--color-studojo-surface)]">
+      <Header />
+      <main className="max-w-4xl mx-auto px-[var(--section-padding-x)] py-[var(--section-padding-y)]">
+        <div className="bg-white border-2 border-[var(--color-studojo-ink)] rounded-lg shadow-[var(--shadow-brutal)] p-8">
+          <div className="markdown-content" dangerouslySetInnerHTML={{ __html: html }} />
         </div>
-      </div>
+      </main>
     </div>
   );
 }
-
