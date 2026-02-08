@@ -6,7 +6,7 @@ export default [
   index("routes/index.tsx"),
   route("auth", "routes/auth.tsx"),
   route("api/auth/check-role", "routes/api.auth.check-role.tsx"),
-  route("api/auth/:path", "routes/api.auth.$.tsx"),
+  route("api/auth/*", "routes/api.auth.$.tsx"),
   route("services", "routes/services.tsx"),
   route("logs", "routes/logs.tsx"),
   route("metrics", "routes/metrics.tsx"),
