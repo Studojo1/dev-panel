@@ -6,26 +6,47 @@ on:
       - main
       - master
     paths:
-      - 'apps/dev-panel/**'
-      - '.github/workflows/service-ci-cd.yml'
+      - '**'
   tags:
     - 'v*.*.*'
 
-jobs:
-  build-and-deploy:
-    uses: ./.github/workflows/service-ci-cd.yml@main
-    with:
-      service_name: dev-panel
-      service_path: ./apps/dev-panel
-      k8s_deployment_name: dev-panel
-      k8s_container_name: dev-panel
-      build_args: |
-        VITE_CONTROL_PLANE_URL=${{ secrets.VITE_CONTROL_PLANE_URL || 'https://api.studojo.com' }}
-    secrets:
-      AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
-      AZURE_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
-      AZURE_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
-      AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
-      KUBECONFIG: ${{ secrets.KUBECONFIG }}
-      DEV_PANEL_WEBHOOK_URL: ${{ secrets.DEV_PANEL_WEBHOOK_URL }}
+env:
+  AZURE_RESOURCE_GROUP: studojo-rg
+  ACR_NAME: acrstudojo
 
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write # Required for OIDC authentication
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Azure Login
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        run: |
+          az acr login --name ${{ env.ACR_NAME }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and push dev-panel
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: ${{ env.ACR_NAME }}.azurecr.io/dev-panel:latest,${{ env.ACR_NAME }}.azurecr.io/dev-panel:${{ github.sha }}
+          build-args: |
+            VITE_CONTROL_PLANE_URL=${{ secrets.VITE_CONTROL_PLANE_URL || 'https://api.studojo.com' }}
+          cache-from: type=registry,ref=${{ env.ACR_NAME }}.azurecr.io/dev-panel:latest
+          cache-to: type=inline
