@@ -6,16 +6,21 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
-RUN if [ -f package-lock.json ]; then npm ci; else npm install; fi
+RUN if [ -f package-lock.json ]; then npm ci --include=dev; else npm install; fi
 
 # Rebuild the source code only when needed
 FROM base AS builder
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+COPY package.json package-lock.json* ./
+# Install all dependencies including dev dependencies
+RUN npm install
 COPY . .
 
 ARG VITE_CONTROL_PLANE_URL=https://api.studojo.com
 ENV VITE_CONTROL_PLANE_URL=${VITE_CONTROL_PLANE_URL}
+
+# Set NODE_ENV for build
+ENV NODE_ENV=development
 
 RUN npm run build
 
@@ -38,6 +43,8 @@ EXPOSE 3004
 
 ENV PORT=3004
 ENV NODE_ENV=production
+# Disable pg-native to avoid native dependency issues
+ENV PG_USE_NATIVE=false
 
 CMD ["npm", "start"]
 
