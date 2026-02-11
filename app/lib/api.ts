@@ -118,6 +118,10 @@ export async function getToken(): Promise<string | null> {
   return null;
 }
 
+async function getAuthToken(): Promise<string | null> {
+  return getToken();
+}
+
 async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
   const token = await getAuthToken();
   const headers = new Headers(options.headers);
