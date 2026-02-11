@@ -13,6 +13,19 @@ export async function loader({ request }: Route.LoaderArgs) {
   }
 }
 
+function getStatusColor(status: string): string {
+  switch (status) {
+    case "healthy":
+      return "bg-[var(--color-studojo-green)]";
+    case "degraded":
+      return "bg-[var(--color-studojo-orange)]";
+    case "unhealthy":
+      return "bg-red-500";
+    default:
+      return "bg-gray-400";
+  }
+}
+
 export default function Services({ loaderData }: Route.ComponentProps) {
   const { services } = loaderData;
 
@@ -38,22 +51,20 @@ export default function Services({ loaderData }: Route.ComponentProps) {
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  <div
-                    className={`h-4 w-4 rounded-full ${
-                      service.status === "healthy" || service.status === "ready"
-                        ? "bg-[var(--color-studojo-green)]"
-                        : "bg-red-500"
-                    }`}
-                  />
+                  <div className={`h-4 w-4 rounded-full ${getStatusColor(service.status)}`} />
                   <div>
-                    <h3 className="text-xl font-bold font-['Clash_Display'] text-[var(--color-studojo-ink)]">
-                      {service.name}
-                    </h3>
+                    <div className="flex items-center space-x-3">
+                      <h3 className="text-xl font-bold font-['Clash_Display'] text-[var(--color-studojo-ink)]">
+                        {service.name}
+                      </h3>
+                      {service.version && service.version !== "unknown" && (
+                        <span className="px-2 py-1 bg-[var(--color-studojo-purple-bg)] text-[var(--color-studojo-purple)] rounded text-xs font-['Satoshi'] font-medium">
+                          {service.version}
+                        </span>
+                      )}
+                    </div>
                     <div className="flex items-center space-x-4 mt-2 font-['Satoshi'] text-sm text-[var(--color-studojo-muted)]">
                       <span>Status: <span className="font-medium text-[var(--color-studojo-ink)] capitalize">{service.status}</span></span>
-                      {service.version && (
-                        <span>Version: <span className="font-medium text-[var(--color-studojo-ink)]">{service.version}</span></span>
-                      )}
                       {service.ready_replicas !== undefined && (
                         <span>Replicas: <span className="font-medium text-[var(--color-studojo-ink)]">{service.ready_replicas}/{service.replicas}</span></span>
                       )}

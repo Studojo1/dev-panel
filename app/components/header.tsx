@@ -23,7 +23,7 @@ export function Header() {
     authClient.signOut({
       fetchOptions: {
         onSuccess: () => {
-          window.location.href = "/auth?mode=signin";
+          window.location.href = "/login";
         },
       },
     });
@@ -116,7 +116,7 @@ export function Header() {
               </div>
             ) : (
               <Link
-                to="/auth?mode=signin"
+                to="/login"
                 className="px-4 py-2 bg-[var(--color-studojo-purple)] text-white rounded-lg font-['Satoshi'] font-medium text-sm hover:bg-[var(--color-studojo-violet-500)] transition-colors"
               >
                 Sign In

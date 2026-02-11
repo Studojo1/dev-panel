@@ -58,10 +58,10 @@ export default function Root({ loaderData }: Route.ComponentProps) {
   const location = useLocation();
   const { data: session, isPending } = authClient.useSession();
 
-  // Redirect to auth if not logged in (but allow auth routes)
+  // Redirect to login if not logged in (but allow login, auth redirect, and api routes)
   useEffect(() => {
-    if (!isPending && !session && !location.pathname.startsWith("/auth") && !location.pathname.startsWith("/api")) {
-      window.location.href = "/auth?mode=signin&redirect=" + encodeURIComponent(location.pathname);
+    if (!isPending && !session && !location.pathname.startsWith("/login") && !location.pathname.startsWith("/auth") && !location.pathname.startsWith("/api")) {
+      window.location.href = "/login?redirect=" + encodeURIComponent(location.pathname);
     }
   }, [session, isPending, location.pathname]);
 

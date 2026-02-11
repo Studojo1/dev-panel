@@ -1,10 +1,12 @@
+import { getToken } from "./api";
+
 /**
  * Check if the current user has dev or admin role
  * This calls the control plane API to verify the user's role
  */
 export async function checkDevRole(): Promise<{ hasAccess: boolean; role?: string }> {
   try {
-    const token = await getAuthToken();
+    const token = await getToken();
     if (!token) {
       return { hasAccess: false };
     }
@@ -37,20 +39,6 @@ export async function checkDevRole(): Promise<{ hasAccess: boolean; role?: strin
   } catch (error) {
     console.error("Error checking dev role:", error);
     return { hasAccess: false };
-  }
-}
-
-/**
- * Get auth token from Better Auth
- */
-async function getAuthToken(): Promise<string | null> {
-  try {
-    const { authClient } = await import("./auth-client");
-    const { data } = await authClient.token();
-    return data?.token || null;
-  } catch (error) {
-    console.error("Error getting auth token:", error);
-    return null;
   }
 }
 

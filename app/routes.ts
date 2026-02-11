@@ -2,10 +2,11 @@ import { type RouteConfig, index, route } from "@react-router/dev/routes";
 
 export default [
   index("routes/index.tsx"),
-  route("auth", "routes/auth.tsx"),
+  route("login", "routes/login.tsx"),
+  route("auth", "routes/auth.tsx"), // Redirect to /login
   route("api/auth/check-role", "routes/api.auth.check-role.tsx"),
-  route("api/auth/*", "routes/api.auth.$.tsx"),
   route("services", "routes/services.tsx"),
+  route("services/:name", "routes/services.$name.tsx"),
   route("logs", "routes/logs.tsx"),
   route("metrics", "routes/metrics.tsx"),
   route("ci-cd", "routes/ci-cd.tsx"),
