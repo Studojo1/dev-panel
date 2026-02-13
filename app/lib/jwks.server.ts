@@ -1,9 +1,26 @@
 import { jwtVerify, createRemoteJWKSet } from "jose";
 
-const JWKS_URL =
-  process.env.JWKS_URL || process.env.VITE_AUTH_URL
-    ? `${process.env.VITE_AUTH_URL || "http://localhost:3000"}/api/auth/jwks`
-    : "http://localhost:3000/api/auth/jwks";
+// Get JWKS URL - prioritize explicit JWKS_URL, then VITE_AUTH_URL, then default
+function getJWKSUrl(): string {
+  if (process.env.JWKS_URL) {
+    return process.env.JWKS_URL;
+  }
+  
+  const authUrl = process.env.VITE_AUTH_URL || process.env.BETTER_AUTH_URL;
+  if (authUrl) {
+    return `${authUrl}/api/auth/jwks`;
+  }
+  
+  // Production default
+  if (process.env.NODE_ENV === "production") {
+    return "https://studojo.com/api/auth/jwks";
+  }
+  
+  // Development default
+  return "http://localhost:3000/api/auth/jwks";
+}
+
+const JWKS_URL = getJWKSUrl();
 
 let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
 
