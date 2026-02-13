@@ -4,11 +4,24 @@ import { Link } from "react-router";
 import type { Route } from "./+types/docs.$slug";
 import { Header } from "~/components/header";
 
+import { getToken } from "~/lib/api";
+
 export async function loader({ params }: Route.LoaderArgs) {
   const { slug } = params;
   try {
     const controlPlaneUrl = process.env.VITE_CONTROL_PLANE_URL || "https://api.studojo.com";
-    const response = await fetch(`${controlPlaneUrl}/v1/dev/docs/${slug}`);
+    const token = await getToken();
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    
+    const response = await fetch(`${controlPlaneUrl}/v1/dev/docs/${slug}`, {
+      headers,
+      credentials: "include",
+    });
     if (!response.ok) {
       return { content: null, slug };
     }

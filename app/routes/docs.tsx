@@ -3,15 +3,28 @@ import type { Route } from "./+types/docs";
 import { Header } from "~/components/header";
 import { useEffect, useState } from "react";
 
+import { getToken } from "~/lib/api";
+
 export async function loader({ request }: Route.LoaderArgs) {
   try {
     const controlPlaneUrl = process.env.VITE_CONTROL_PLANE_URL || "https://api.studojo.com";
-    const response = await fetch(`${controlPlaneUrl}/v1/dev/docs`);
+    const token = await getToken();
+    const headers: HeadersInit = {
+      "Content-Type": "application/json",
+    };
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+    
+    const response = await fetch(`${controlPlaneUrl}/v1/dev/docs`, {
+      headers,
+      credentials: "include",
+    });
     if (!response.ok) {
       return { docs: [] };
     }
     const data = await response.json();
-    return { docs: data || [] };
+    return { docs: Array.isArray(data) ? data : [] };
   } catch (error) {
     console.error("Failed to load docs list:", error);
     return { docs: [] };
