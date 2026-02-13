@@ -1,17 +1,19 @@
 import { jwtVerify, createRemoteJWKSet } from "jose";
 
-// Get JWKS URL - prioritize explicit JWKS_URL, then VITE_AUTH_URL, then default
+// Get JWKS URL - prioritize explicit JWKS_URL, then VITE_AUTH_URL (which points to main frontend), then default
 function getJWKSUrl(): string {
   if (process.env.JWKS_URL) {
     return process.env.JWKS_URL;
   }
   
-  const authUrl = process.env.VITE_AUTH_URL || process.env.BETTER_AUTH_URL;
+  // VITE_AUTH_URL should point to the main frontend (studojo.com) where JWKS is hosted
+  // BETTER_AUTH_URL might point to dev.studojo.com, so don't use it for JWKS
+  const authUrl = process.env.VITE_AUTH_URL;
   if (authUrl) {
     return `${authUrl}/api/auth/jwks`;
   }
   
-  // Production default
+  // Production default - JWKS is always on the main frontend
   if (process.env.NODE_ENV === "production") {
     return "https://studojo.com/api/auth/jwks";
   }
@@ -21,6 +23,11 @@ function getJWKSUrl(): string {
 }
 
 const JWKS_URL = getJWKSUrl();
+
+// Log JWKS URL in development for debugging
+if (process.env.NODE_ENV === "development") {
+  console.log("[JWKS] Using JWKS URL:", JWKS_URL);
+}
 
 let jwks: ReturnType<typeof createRemoteJWKSet> | null = null;
 
