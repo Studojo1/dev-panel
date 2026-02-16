@@ -231,3 +231,71 @@ export async function rollbackService(
     throw new Error(error.error?.message || "Rollback failed");
   }
 }
+
+export async function scaleService(
+  service: string,
+  replicas: number,
+): Promise<void> {
+  const response = await fetchWithAuth(
+    `${API_BASE}/v1/dev/services/${service}/scale`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ replicas }),
+    },
+  );
+  if (!response.ok) {
+    const error = await response
+      .json()
+      .catch(() => ({ error: { message: "Scaling failed" } }));
+    throw new Error(error.error?.message || "Scaling failed");
+  }
+}
+
+/**
+ * Create a WebSocket connection for streaming logs
+ * Returns a WebSocket instance that can be used to receive log messages
+ */
+export function streamLogs(
+  service: string,
+  pod?: string,
+  follow: boolean = true,
+  tailLines: string = "100",
+): WebSocket {
+  const token = sessionStorage.getItem("dev_panel_token");
+  const params = new URLSearchParams();
+  params.set("service", service);
+  if (pod) params.set("pod", pod);
+  if (follow) params.set("follow", "true");
+  params.set("tail", tailLines);
+
+  // Convert HTTP/HTTPS URL to WebSocket URL
+  let wsUrl = API_BASE;
+  if (wsUrl.startsWith("https://")) {
+    wsUrl = wsUrl.replace("https://", "wss://");
+  } else if (wsUrl.startsWith("http://")) {
+    wsUrl = wsUrl.replace("http://", "ws://");
+  } else {
+    // Default to wss if no protocol
+    wsUrl = `wss://${wsUrl}`;
+  }
+
+  const ws = new WebSocket(
+    `${wsUrl}/v1/dev/logs/stream?${params.toString()}`,
+  );
+
+  // Note: WebSocket doesn't support custom headers in browser
+  // The backend should handle authentication via cookies or upgrade the connection
+  // with the Authorization header from the initial HTTP request
+
+  return ws;
+}
+
+/**
+ * Wrapper for getCICDStatus that always passes a service parameter
+ */
+export async function getCICDStatusForService(service: string) {
+  return getCICDStatus(service);
+}
