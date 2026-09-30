@@ -3,11 +3,31 @@ name: Build and Deploy
 on:
   push:
     branches: [main]
+  workflow_dispatch:
+
+# The newest push wins; two deploys never race.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: true
+
+# Same as the other services: GitHub OIDC to Azure, no stored client secret.
+# The repo secrets AZURE_CLIENT_ID / AZURE_TENANT_ID / AZURE_SUBSCRIPTION_ID
+# name the github-actions-studojo-dev-panel app registration, whose federated
+# credential trusts repo:Studojo1/dev-panel:ref:refs/heads/main and which holds
+# AcrPush on acrstudojo and the AKS Cluster User role on studojo-aks. The old
+# docker/login-action step used AZURE_CLIENT_SECRET, which this repo never had,
+# so every run failed at "Login to Azure Container Registry".
+permissions:
+  id-token: write
+  contents: read
 
 env:
   REGISTRY: acrstudojo-dhfsdrfhf6a6bbg2.azurecr.io
+  ACR_NAME: acrstudojo
   APP_NAME: dev-panel
   IMAGE_TAG: ${{ github.sha }}
+  AKS_RESOURCE_GROUP: rg-studojo
+  AKS_CLUSTER_NAME: studojo-aks
 
 jobs:
   build:
@@ -16,15 +36,20 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Azure Login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Login to ACR
+        run: |
+          TOKEN=$(az acr login --name ${{ env.ACR_NAME }} --expose-token --output tsv --query accessToken)
+          docker login ${{ env.REGISTRY }} -u 00000000-0000-0000-0000-000000000000 --password-stdin <<< "$TOKEN"
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      - name: Login to Azure Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ secrets.AZURE_CLIENT_ID }}
-          password: ${{ secrets.AZURE_CLIENT_SECRET }}
 
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
@@ -33,7 +58,6 @@ jobs:
           push: true
           tags: |
             ${{ env.REGISTRY }}/${{ env.APP_NAME }}:${{ env.IMAGE_TAG }}
-            ${{ env.REGISTRY }}/${{ env.APP_NAME }}:latest
           cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.APP_NAME }}:buildcache
           cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.APP_NAME }}:buildcache,mode=max
 
@@ -41,26 +65,12 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Construct Azure Credentials
-        id: azure_creds
-        run: |
-          if [ -z "${{ secrets.AZURE_CREDENTIALS }}" ]; then
-            echo "creds<<EOF" >> $GITHUB_OUTPUT
-            echo '{"clientId":"${{ secrets.AZURE_CLIENT_ID }}","clientSecret":"${{ secrets.AZURE_CLIENT_SECRET }}","subscriptionId":"${{ secrets.AZURE_SUBSCRIPTION_ID }}","tenantId":"${{ secrets.AZURE_TENANT_ID }}"}' >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          else
-            echo "creds<<EOF" >> $GITHUB_OUTPUT
-            echo "${{ secrets.AZURE_CREDENTIALS }}" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Azure Login
+      - name: Azure Login (OIDC)
         uses: azure/login@v2
         with:
-          creds: ${{ steps.azure_creds.outputs.creds }}
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Set up kubectl
         uses: azure/setup-kubectl@v3
@@ -70,20 +80,30 @@ jobs:
       - name: Get AKS credentials
         run: |
           az aks get-credentials \
-            --resource-group ${{ secrets.AKS_RESOURCE_GROUP }} \
-            --name ${{ secrets.AKS_CLUSTER_NAME }} \
+            --resource-group ${{ env.AKS_RESOURCE_GROUP }} \
+            --name ${{ env.AKS_CLUSTER_NAME }} \
             --overwrite-existing
 
       - name: Deploy to Kubernetes
         run: |
+          # Start the new pod before stopping the old one (single replica).
+          kubectl patch deployment/${{ env.APP_NAME }} -n studojo \
+            -p '{"spec":{"strategy":{"type":"RollingUpdate","rollingUpdate":{"maxSurge":1,"maxUnavailable":0}}}}'
           kubectl set image deployment/${{ env.APP_NAME }} ${{ env.APP_NAME }}=${{ env.REGISTRY }}/${{ env.APP_NAME }}:${{ env.IMAGE_TAG }} -n studojo
-          kubectl rollout status deployment/${{ env.APP_NAME }} -n studojo --timeout=5m
+          kubectl rollout status deployment/${{ env.APP_NAME }} -n studojo --timeout=5m || {
+            kubectl get pods -n studojo -l app=${{ env.APP_NAME }} -o wide
+            POD=$(kubectl get pods -n studojo -l app=${{ env.APP_NAME }} --sort-by=.metadata.creationTimestamp -o jsonpath='{.items[-1].metadata.name}' 2>/dev/null || true)
+            [ -n "$POD" ] && kubectl logs -n studojo "$POD" --tail=50 || true
+            exit 1
+          }
 
       - name: Record deployment
+        env:
+          DEPLOYMENT_SECRET: ${{ secrets.DEPLOYMENT_SECRET }}
         run: |
-          curl -X POST https://api.studojo.com/v1/dev/deployments \
+          curl -fsS -X POST https://api.studojo.com/v1/dev/deployments \
             -H "Content-Type: application/json" \
-            -H "X-Deployment-Secret: ${{ secrets.DEPLOYMENT_SECRET }}" \
+            -H "X-Deployment-Secret: $DEPLOYMENT_SECRET" \
             -d '{
               "service": "${{ env.APP_NAME }}",
               "version": "${{ env.IMAGE_TAG }}",
